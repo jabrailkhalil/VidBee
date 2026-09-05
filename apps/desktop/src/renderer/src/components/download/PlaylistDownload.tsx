@@ -6,7 +6,7 @@ import { TabItem, Tabs, TabsList } from '@renderer/components/ui/tabs'
 import { cn } from '@renderer/lib/utils'
 import type { PlaylistInfo } from '@shared/types'
 import { Loader2, Settings2 } from 'lucide-react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DownloadParseErrorBanner } from './DownloadParseErrorBanner'
 
@@ -19,6 +19,7 @@ interface PlaylistDownloadProps {
   selectedEntryIds: Set<string>
   downloadType: 'video' | 'audio'
   downloadTypeId: string
+  containerSelect: ReactNode
   startIndex: string
   endIndex: string
   advancedOptionsOpen: boolean
@@ -52,6 +53,7 @@ export function PlaylistDownload({
   selectedEntryIds,
   downloadType,
   downloadTypeId,
+  containerSelect,
   startIndex,
   endIndex,
   advancedOptionsOpen,
@@ -122,7 +124,7 @@ export function PlaylistDownload({
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Tabs
               onValueChange={(value) => setDownloadType(value as 'video' | 'audio')}
               size="compact"
@@ -133,6 +135,8 @@ export function PlaylistDownload({
                 <TabItem label={t('download.audio')} value="audio" />
               </TabsList>
             </Tabs>
+
+            {containerSelect}
 
             <Button
               aria-label={t('advancedOptions.title')}
