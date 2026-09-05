@@ -7,7 +7,7 @@ import { ScrollArea } from "@vidbee/ui/components/ui/scroll-area";
 import { TabItem, Tabs, TabsList } from "@vidbee/ui/components/ui/tabs";
 import { cn } from "@vidbee/ui/lib/cn";
 import { AlertCircle, List, Loader2, Settings2 } from "lucide-react";
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 
 interface PlaylistDownloadProps {
@@ -19,6 +19,7 @@ interface PlaylistDownloadProps {
 	selectedEntryIds: Set<string>;
 	downloadType: "video" | "audio";
 	downloadTypeId: string;
+	containerSelect: ReactNode;
 	startIndex: string;
 	endIndex: string;
 	advancedOptionsOpen: boolean;
@@ -52,6 +53,7 @@ export function PlaylistDownload({
 	selectedEntryIds,
 	downloadType,
 	downloadTypeId,
+	containerSelect,
 	startIndex,
 	endIndex,
 	advancedOptionsOpen,
@@ -146,7 +148,7 @@ export function PlaylistDownload({
 					</div>
 
 					<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-						<div className="flex shrink-0 items-center gap-1.5">
+						<div className="flex shrink-0 flex-wrap items-center gap-1.5">
 							<Tabs
 								onValueChange={(value) =>
 									setDownloadType(value as "video" | "audio")
@@ -162,6 +164,8 @@ export function PlaylistDownload({
 									<TabItem label={t("download.audio")} value="audio" />
 								</TabsList>
 							</Tabs>
+
+							{containerSelect}
 
 							<Button
 								aria-label={t("advancedOptions.title")}

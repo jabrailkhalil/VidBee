@@ -3,9 +3,14 @@ import type {
 	VideoFormat,
 	VideoInfo,
 } from "@vidbee/downloader-core";
+import {
+	ONE_CLICK_CONTAINER_OPTIONS,
+	type OneClickContainerOption,
+} from "@vidbee/downloader-core/format-preferences";
 import { AddUrlPopover } from "@vidbee/ui/components/ui/add-url-popover";
 import { Button } from "@vidbee/ui/components/ui/button";
 import { Checkbox } from "@vidbee/ui/components/ui/checkbox";
+import { DownloadContainerSelect } from "@vidbee/ui/components/ui/download-container-select";
 import { DownloadDialogLayout } from "@vidbee/ui/components/ui/download-dialog-layout";
 import { IngestDropOverlay } from "@vidbee/ui/components/ui/ingest-drop-overlay";
 import { Input } from "@vidbee/ui/components/ui/input";
@@ -110,6 +115,8 @@ export function DownloadDialog({ onDownloadsChanged }: DownloadDialogProps) {
 	const advancedOptionsId = useId();
 	const [playlistUrl, setPlaylistUrl] = useState("");
 	const [downloadType, setDownloadType] = useState<"video" | "audio">("video");
+	const [playlistContainer, setPlaylistContainer] =
+		useState<OneClickContainerOption>();
 	const [startIndex, setStartIndex] = useState("1");
 	const [endIndex, setEndIndex] = useState("");
 	const [playlistInfo, setPlaylistInfo] = useState<PlaylistInfo | null>(null);
@@ -481,7 +488,9 @@ export function DownloadDialog({ onDownloadsChanged }: DownloadDialogProps) {
 					? buildVideoFormatPreference(settings)
 					: buildAudioFormatPreference(settings);
 			const containerFormat =
-				downloadType === "video" ? settings.oneClickContainer : undefined;
+				downloadType === "video"
+					? (playlistContainer ?? settings.oneClickContainer)
+					: undefined;
 
 			const result = await orpcClient.playlist.download({
 				url: trimmedUrl,
@@ -512,6 +521,7 @@ export function DownloadDialog({ onDownloadsChanged }: DownloadDialogProps) {
 		playlistUrl,
 		playlistInfo,
 		selectedEntryIds,
+		playlistContainer,
 		computePlaylistRange,
 		downloadType,
 		settings,
@@ -613,6 +623,7 @@ export function DownloadDialog({ onDownloadsChanged }: DownloadDialogProps) {
 		});
 
 		setPlaylistUrl("");
+		setPlaylistContainer(undefined);
 		setPlaylistInfo(null);
 		setPlaylistPreviewError(null);
 		setStartIndex("1");
@@ -794,6 +805,18 @@ export function DownloadDialog({ onDownloadsChanged }: DownloadDialogProps) {
 				playlistTabContent={
 					<PlaylistDownload
 						advancedOptionsOpen={advancedOptionsOpen}
+						containerSelect={
+							downloadType === "video" && (
+								<DownloadContainerSelect
+									disabled={playlistBusy}
+									onValueChange={setPlaylistContainer}
+									options={ONE_CLICK_CONTAINER_OPTIONS}
+									value={
+										playlistContainer ?? settings.oneClickContainer ?? "auto"
+									}
+								/>
+							)
+						}
 						downloadType={downloadType}
 						downloadTypeId={downloadTypeId}
 						endIndex={endIndex}
