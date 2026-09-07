@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import type { AsrTierId } from '../asr-tiers'
 import type { SpeakerCount } from '../speaker-count'
 import type { PipelineProgress, PipelineResult, TranscriptionStage, TranscriptWord } from '../types'
@@ -6,6 +7,7 @@ export interface WorkerStartMessage {
   type: 'start'
   taskId: string
   attemptId: string
+  generation: string
   sourceFilePath: string
   ffmpegPath: string
   workDir: string
@@ -51,9 +53,19 @@ export interface WorkerPartialMessage {
 
 export interface WorkerResultMessage {
   type: 'result'
+  attemptId: string
+  generation: string
+  durationMs: number
+}
+
+export interface WorkerResultFile {
+  attemptId: string
+  generation: string
   result: PipelineResult
   durationMs: number
 }
+
+export const resultPathFor = (workDir: string): string => join(workDir, 'result.json')
 
 export interface WorkerErrorMessage {
   type: 'error'

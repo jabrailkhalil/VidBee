@@ -4,6 +4,7 @@
  */
 import { writeSync } from 'node:fs'
 import { readAsrResult } from '../asr-json'
+import { atomicWriteJson } from '../atomic-file'
 import { tryRecognizerConfig } from '../asr-recognizer'
 import { ASR_TIER_IDS } from '../asr-tiers'
 import { extractMonoWav } from '../audio'
@@ -15,7 +16,13 @@ import { SherpaTranscriptionPipeline } from '../pipeline-sherpa'
 import { loadPipelineSeed, seedDurationMs } from '../speaker-assign'
 import { parseSpeakerCount } from '../speaker-count'
 import type { TranscriptionStage } from '../types'
-import { encodeMessage, parseMessage, type WorkerInbound, type WorkerOutbound } from './protocol'
+import {
+  encodeMessage,
+  parseMessage,
+  resultPathFor,
+  type WorkerInbound,
+  type WorkerOutbound
+} from './protocol'
 
 const send = (message: WorkerOutbound): void => {
   // writeSync so Electron-as-Node pipe buffering cannot starve the watchdog.
@@ -181,7 +188,18 @@ const handleStart = async (
         })
       }
     })
-    send({ type: 'result', result, durationMs: extracted.durationMs })
+    atomicWriteJson(resultPathFor(message.workDir), {
+      attemptId: message.attemptId,
+      generation: message.generation,
+      result,
+      durationMs: extracted.durationMs
+    })
+    send({
+      type: 'result',
+      attemptId: message.attemptId,
+      generation: message.generation,
+      durationMs: extracted.durationMs
+    })
   } catch (err) {
     const text = err instanceof Error ? err.message : String(err)
     if (signal.aborted || /cancelled/i.test(text)) {

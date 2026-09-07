@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type {
@@ -44,8 +44,10 @@ import type { PipelineResult, PipelineSegment, TranscriptionStage } from './type
 import {
   encodeMessage,
   parseMessage,
+  resultPathFor,
   type WorkerInbound,
-  type WorkerOutbound
+  type WorkerOutbound,
+  type WorkerResultFile
 } from './worker/protocol'
 
 export type TranscriptionBackend = 'sherpa' | 'fake'
@@ -455,6 +457,16 @@ export class TranscriptionExecutor implements Executor {
     existingTranscriptPath?: string
   }): Promise<{ result: PipelineResult; durationMs: number }> {
     return new Promise((resolve, reject) => {
+      const generation = `${input.ctx.attemptId}:${Date.now()}:${Math.random()}`
+      const resultPath = resultPathFor(input.workDir)
+      try {
+        unlinkSync(resultPath)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          reject(error)
+          return
+        }
+      }
       const child: ChildProcess = spawn(
         input.runtime.execPath,
         [...(this.opts.execArgv ?? []), this.opts.workerScript],
@@ -471,6 +483,7 @@ export class TranscriptionExecutor implements Executor {
         type: 'start',
         taskId: input.ctx.taskId,
         attemptId: input.ctx.attemptId,
+        generation,
         sourceFilePath: input.parsed.sourceFilePath,
         ffmpegPath: this.opts.resolveFfmpegPath(),
         workDir: input.workDir,
@@ -553,7 +566,34 @@ export class TranscriptionExecutor implements Executor {
               line: message.line
             })
           } else if (message.type === 'result') {
-            settle(() => resolve({ result: message.result, durationMs: message.durationMs }))
+            settle(() => {
+              try {
+                if (
+                  message.attemptId !== input.ctx.attemptId ||
+                  message.generation !== generation
+                ) {
+                  throw new Error('ai-worker returned an incompatible result notification')
+                }
+                const resultFile = JSON.parse(
+                  readFileSync(resultPath, 'utf8')
+                ) as WorkerResultFile
+                if (
+                  resultFile.attemptId !== input.ctx.attemptId ||
+                  resultFile.generation !== generation ||
+                  !resultFile.result ||
+                  typeof resultFile.durationMs !== 'number'
+                ) {
+                  throw new Error('ai-worker wrote an invalid result file')
+                }
+                resolve(resultFile)
+              } catch (error) {
+                reject(
+                  error instanceof Error
+                    ? error
+                    : new Error(`ai-worker result file could not be read: ${String(error)}`)
+                )
+              }
+            })
           } else if (message.type === 'error') {
             settle(() => {
               if (message.message === 'cancelled' || input.abort.signal.aborted) {
